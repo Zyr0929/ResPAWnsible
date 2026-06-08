@@ -22,5 +22,5 @@ behavior = input("Enter Behavior Tag (e.g., Small-Dog Aggressive, Calm): ")
 c.execute("INSERT INTO Pets (name, behavior) VALUES (?, ?)", (name, behavior))
 conn.commit()
 
-print(f"\nSuccess! {name} has been added to the database.")
+print(f"\nSuccess! {name} has been addede to the database.")
 conn.close()
