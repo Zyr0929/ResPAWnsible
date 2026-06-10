@@ -52,9 +52,9 @@ CREATE TABLE VISIT (
     ,PetID INTEGER NOT NULL
     ,RoomID INTEGER NOT NULL
     ,VisitType TEXT CHECK(VisitType IN ('Reservation', 'Walk-in')) NOT NULL
-    ,VisitDate TEXT NOT NULL
-    ,StartTime TEXT NOT NULL
-    ,EndTime TEXT NOT NULL
+    ,VisitDate TEXT
+    ,StartTime TEXT
+    ,EndTime TEXT
     ,Notes TEXT
     ,FOREIGN KEY (PetID) REFERENCES PET(PetID) ON DELETE CASCADE
     ,FOREIGN KEY (RoomID) REFERENCES PLAYROOM(RoomID)
