@@ -2,11 +2,19 @@ import os
 import sqlite3
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(BASE_DIR, 'ResPAWNsible(Real).db')
+db_path = os.path.join(BASE_DIR, 'ResPAWNsible.db')
+sql_script_path = os.path.join(BASE_DIR, 'ResPAWnsibleDBSchema.sql')
 
 conn = sqlite3.connect(db_path)
 c = conn.cursor()
-c.execute("PRAGMA foreign_keys = ON;")
+
+try:
+    c.execute("SELECT 1 FROM OWNER LIMIT 1")
+except sqlite3.OperationalError:
+    if os.path.exists(sql_script_path):
+        with open(sql_script_path, 'r') as f:
+            c.executescript(f.read())
+        conn.commit()
 
 def get_or_create_behavior_tags():
     """Silently ensures default tags exist and returns them without terminal warnings."""
