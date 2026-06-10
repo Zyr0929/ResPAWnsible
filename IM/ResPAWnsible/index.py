@@ -311,14 +311,13 @@ class ResPAWnsibleApp(QMainWindow):
             print(f"Visitations reload failure: {e}")
 
     def process_checkin(self):
-        """Implements safe room matrix validation rules securely."""
+        """Implements safe room matrix validation rules securely with Active Guard checks."""
         try:
             p_id_text = self.v_pet_id.text().strip()
             if not p_id_text: return
             pet_id = int(p_id_text)
             room_id = self.v_room_cb.currentData()
             
-            # Grabs selection text directly from the UI dropdown choice configuration
             visit_type = self.v_type.currentText()
             
             if not room_id:
@@ -340,6 +339,27 @@ class ResPAWnsibleApp(QMainWindow):
                 return
                 
             pet_name, pet_weight, pet_behavior, breed_type = pet_profile
+
+            self.c.execute("""
+                SELECT COUNT(*), R.RoomName 
+                FROM VISIT V
+                JOIN PLAYROOM R ON V.RoomID = R.RoomID
+                WHERE V.PetID = ? AND (V.EndTime IS NULL OR V.EndTime = '');
+            """, (pet_id,))
+            active_check = self.c.fetchone()
+            
+            if active_check and active_check[0] > 0:
+                current_room = active_check[1]
+                QMessageBox.warning(
+                    self, 
+                    "Check-In Blocked", 
+                    f"Double-Booking Error:\n\n"
+                    f"{pet_name} (ID: {pet_id}) is already checked into the system! "
+                    f"They are currently assigned to the '{current_room}'.\n\n"
+                    f"You must check them out from their active stay before re-assigning them."
+                )
+                return
+
             pet_species = self.parse_species(breed_type)
             pet_size = "Small" if (pet_weight or 0) < 30 else "Large"
             
