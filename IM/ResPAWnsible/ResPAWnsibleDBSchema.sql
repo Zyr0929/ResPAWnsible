@@ -51,7 +51,7 @@ CREATE TABLE VISIT (
     VisitID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
     ,PetID INTEGER NOT NULL
     ,RoomID INTEGER NOT NULL
-    ,VisitType TEXT CHECK(VisitType IN ('Reservation', 'Walk-in')) NOT NULL
+    ,VisitType TEXT CHECK(VisitType IN ('Reservation', 'Walk-in'))
     ,VisitDate TEXT
     ,StartTime TEXT
     ,EndTime TEXT
