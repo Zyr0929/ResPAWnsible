@@ -118,15 +118,22 @@ try:
         print(f"\nCHECK-IN DENIED: {reason}")
     else:
         print(f"\nSafety checks passed for {pet_name}!")
-        visit_type = input("Enter Visit Type (e.g., Daycare, Boarding): ").strip()
+        print("\n[Allowed Visit Types: 1 = Reservation, 2 = Walk-in]")
+        visit_choice = input("Select Visit Type (1 or 2): ").strip()
+
+        if visit_choice == "1":
+            visit_type = "Reservation"
+        else:
+            visit_type = "Walk-in"
+
         current_date = datetime.now().strftime("%Y-%m-%d")
         start_time = datetime.now().strftime("%H:%M:%S")
-        
+
         c.execute("""
             INSERT INTO VISIT (PetID, RoomID, VisitType, VisitDate, StartTime, EndTime, Notes)
             VALUES (?, ?, ?, ?, ?, NULL, 'Validated clear via systematic safety matrix rules.');
         """, (pet_id, room_id, visit_type, current_date, start_time))
-        
+
         conn.commit()
         print(f"Success! {pet_name} has been securely tracked into Room {room_id} at {start_time}.")
 
