@@ -3,14 +3,15 @@ import sqlite3
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 db_path = os.path.join(BASE_DIR, 'ResPAWNsible(Real).db')
-
 conn = sqlite3.connect(db_path)
+
 c = conn.cursor()
 c.execute("PRAGMA foreign_keys = ON;")
 
 def get_or_create_behavior_tags():
     """Silently ensures default tags exist and returns them without terminal warnings."""
-    c.execute("SELECT TagID, Behavior FROM BEHAVIOR_TAG;")
+    # Added ORDER BY to keep the terminal menu perfectly sorted numerically
+    c.execute("SELECT TagID, Behavior FROM BEHAVIOR_TAG ORDER BY TagID ASC;")
     tags = c.fetchall()
     
     if not tags:
@@ -18,16 +19,16 @@ def get_or_create_behavior_tags():
             ("Calm / Friendly",), 
             ("Nervous / Fearful",), 
             ("Hyperactive / Playful",), 
-            ("Agressive / Territorial",), 
+            ("Aggressive / Territorial",),
             ("Requires Solo Room",)
         ]
         c.executemany("INSERT INTO BEHAVIOR_TAG (Behavior) VALUES (?);", defaults)
         conn.commit()
-        c.execute("SELECT TagID, Behavior FROM BEHAVIOR_TAG;")
+        c.execute("SELECT TagID, Behavior FROM BEHAVIOR_TAG ORDER BY TagID ASC;")
         tags = c.fetchall()
     return tags
 
-print("UNIVERSAL PET REGISTRATION")
+print("PET REGISTRATION")
 
 try:
     print("Owner Information")
