@@ -4,8 +4,9 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, 
                              QVBoxLayout, QFormLayout, QLineEdit, QComboBox, 
                              QPushButton, QMessageBox, QLabel, QFrame, QStackedWidget,
-                             QTableWidget, QTableWidgetItem, QHeaderView, QCompleter, QScrollArea)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+                             QTableWidget, QTableWidgetItem, QHeaderView, QCompleter, QScrollArea,
+                             QDateEdit)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QDate
 from PyQt5.QtGui import QImage, QPixmap
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -108,7 +109,6 @@ class ResPAWnsibleApp(QMainWindow):
                 occupants = self.c.fetchall()
                 count = len(occupants)
                 
-                # Capacity Rules (Fixed to ignore solo rooms for "almost full" warnings)
                 if r_cap and count >= r_cap: 
                     alerts.append(("CRITICAL", "Capacity Overflow", f"{r_name} is FULL ({count}/{r_cap}). No further admittance allowed."))
                 elif r_cap > 1 and count >= r_cap - 1: 
@@ -181,6 +181,7 @@ class ResPAWnsibleApp(QMainWindow):
             elif i == 1: self.build_live_playrooms_page(p_layout)
             elif i == 2: self.build_registration_page(p_layout)
             elif i == 3: self.build_pets_page(p_layout)
+            elif i == 4: self.build_bookings_page(p_layout)
             elif i == 5: self.build_visitations_page(p_layout)
             elif i == 6: self.build_safety_reports_page(p_layout)
             else: p_layout.addWidget(QLabel(f"<h1 style='color: #333;'>{nav} Page (Under Construction)</h1>"))
@@ -205,6 +206,7 @@ class ResPAWnsibleApp(QMainWindow):
         if index == 0: self.refresh_dashboard()
         if index == 2: self.refresh_breed_completer()
         if index == 3: self.refresh_pets_table()
+        if index == 4: self.refresh_bookings_module()
         if index == 5: self.refresh_visitations_module()
         if index == 6: self.refresh_safety_reports()
 
@@ -488,7 +490,7 @@ class ResPAWnsibleApp(QMainWindow):
             self.c.execute("SELECT RoomID, RoomName, MaxCapacity FROM PLAYROOM;")
             for r_id, r_name, cap in self.c.fetchall():
                 self.c.execute("SELECT COUNT(*) FROM VISIT WHERE RoomID=? AND (EndTime IS NULL OR EndTime = '');", (r_id,))
-                self.v_room_cb.addItem(f"{r_name} ({self.c.fetchone()[0]}/{cap})", r_id)
+                self.v_room_cb.addItem(f"{r_name} (Capacity: {self.c.fetchone()[0]}/{cap})", r_id)
         except Exception: pass
 
     def process_checkin(self):
@@ -504,7 +506,7 @@ class ResPAWnsibleApp(QMainWindow):
             self.c.execute("SELECT COUNT(*) FROM VISIT WHERE PetID=? AND (EndTime IS NULL OR EndTime = '');", (int(p_id),))
             if self.c.fetchone()[0] > 0: return QMessageBox.warning(self, "Blocked", "Pet already checked in.")
 
-            self.c.execute("SELECT P.Name, P.Weight_lbs, BT.Behavior, B.BreedType FROM VISIT V JOIN PET P ON V.PetID=P.PetID LEFT JOIN BREED B ON P.PetID=B.PetID LEFT JOIN PET_TAG PT ON P.PetID=PT.PetID LEFT JOIN BEHAVIOR_TAG BT ON PT.TagID=BT.TagID WHERE V.RoomID=? AND (V.EndTime IS NULL OR V.EndTime = '');", (r_id,))
+            self.c.execute("SELECT P.Name, P.Weight_lbs, BT.Behavior, B.BreedType FROM VISIT V JOIN PET P ON V.PetID = P.PetID LEFT JOIN BREED B ON P.PetID = B.PetID LEFT JOIN PET_TAG PT ON P.PetID = PT.PetID LEFT JOIN BEHAVIOR_TAG BT ON PT.TagID = BT.TagID WHERE V.RoomID=? AND (V.EndTime IS NULL OR V.EndTime = '');", (r_id,))
             occupants = self.c.fetchall()
             
             sp, sz = self.parse_species(p_prof[3]), "Small" if (p_prof[1] or 0) < 30 else "Large"
@@ -512,7 +514,7 @@ class ResPAWnsibleApp(QMainWindow):
                 o_sp, o_sz = self.parse_species(o[3]), "Small" if (o[1] or 0) < 30 else "Large"
                 if "Requires Solo Room" in [str(p_prof[2]), str(o[2])] or sp != o_sp:
                     return QMessageBox.critical(self, "DENIED", "Safety Rule Violation (Isolation/Species).")
-                if sp == "Dog" and (("Aggressive" in str(p_prof[2]) and "Calm" in str(o[2])) or ("Calm" in str(p_prof[2]) and "Aggressive" in str(o[2])) or (("Agressive" in str(p_prof[2]) or "Agressive" in str(o[2]) or "Aggressive" in str(p_prof[2]) or "Aggressive" in str(o[2])) and sz != o_sz)):
+                if sp == "Dog" and (("Aggressive" in str(p_prof[2]) and "Calm" in str(o[2])) or ("Calm" in str(p_prof[2]) and "Aggressive" in str(o[2])) or (("Agressive" in str(p_prof[2]) or "Agressive" in str(o[2]) or "Aggressive" in str(p_prof[2]) or "Aggressive" in str(p_prof[2])) and sz != o_sz)):
                     return QMessageBox.critical(self, "DENIED", "Safety Rule Violation (Behavior/Size Mismatch).")
 
             self.c.execute("INSERT INTO VISIT (PetID, RoomID, VisitType, VisitDate, StartTime, Notes) VALUES (?, ?, ?, ?, ?, 'Cleared.');", (int(p_id), r_id, self.v_type.currentText(), datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M:%S")))
@@ -532,6 +534,204 @@ class ResPAWnsibleApp(QMainWindow):
         except Exception as e: QMessageBox.critical(self, "Error", str(e))
 
     def closeEvent(self, e): self.conn.close()
+
+    # --- Bookings Page ---
+    def build_bookings_page(self, layout):
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.addWidget(QLabel("<h1 style='color: #333;'>📅 Advance Reservations Manager</h1>"))
+        
+        split_layout = QHBoxLayout()
+        left_panel = QFrame()
+        left_panel.setStyleSheet("background-color: white; border: 1px solid #E0E0E0; border-radius: 5px; padding: 10px;")
+        lp_lay = QVBoxLayout(left_panel)
+        lp_lay.addWidget(QLabel("<h3>Upcoming Scheduled Slots</h3>"))
+        
+        self.bookings_table = QTableWidget()
+        self.bookings_table.setColumnCount(5)
+        self.bookings_table.setHorizontalHeaderLabels(["Booking ID", "Pet", "Room Slot", "Visit Date", "Arrival Time"])
+        self.bookings_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.bookings_table.verticalHeader().setDefaultSectionSize(40)
+        self.bookings_table.setStyleSheet("background-color: white; gridline-color: #E0E0E0;")
+        lp_lay.addWidget(self.bookings_table)
+        split_layout.addWidget(left_panel, 6)
+        
+        right_panel = QFrame()
+        right_panel.setFixedWidth(340)
+        right_panel.setStyleSheet("background-color: white; border: 1px solid #E0E0E0; border-radius: 5px; padding: 15px;")
+        rp_lay = QVBoxLayout(right_panel)
+        rp_lay.addWidget(QLabel("<h3>Encode Phone Reservation</h3>"))
+        
+        form = QFormLayout()
+        self.bk_pet_id = QLineEdit()
+        self.bk_room_cb = QComboBox()
+        
+        style = "padding: 5px; border: 1px solid #CCC; border-radius: 3px; background: white;"
+        calendar_style = "QCalendarWidget QWidget { color: black; }"
+        
+        self.bk_start = QDateEdit()
+        self.bk_start.setCalendarPopup(True)
+        self.bk_start.calendarWidget().setStyleSheet(calendar_style)
+        self.bk_start.setDate(QDate.currentDate())
+        self.bk_start.setMinimumDate(QDate.currentDate())
+        
+        self.bk_hour_cb = QComboBox()
+        self.bk_min_cb = QComboBox()
+        self.bk_period_cb = QComboBox()
+        
+        self.bk_hour_cb.addItems([f"{i:02d}" for i in range(1, 13)])
+        self.bk_min_cb.addItems([f"{i:02d}" for i in range(0, 60, 5)])
+        self.bk_period_cb.addItems(["AM", "PM"])
+        
+        self.bk_hour_cb.setMinimumWidth(65)
+        self.bk_min_cb.setMinimumWidth(65)
+        self.bk_period_cb.setMinimumWidth(65)
+        
+        self.bk_hour_cb.setStyleSheet(style)
+        self.bk_min_cb.setStyleSheet(style)
+        self.bk_period_cb.setStyleSheet(style)
+        
+        time_widget = QWidget()
+        time_layout = QHBoxLayout(time_widget)
+        time_layout.setContentsMargins(0, 0, 0, 0)
+        time_layout.setSpacing(5)
+        time_layout.addWidget(self.bk_hour_cb)
+        
+        colon_lbl = QLabel(":")
+        colon_lbl.setAlignment(Qt.AlignCenter)
+        colon_lbl.setStyleSheet("font-weight: bold; font-size: 14px; color: black;")
+        time_layout.addWidget(colon_lbl)
+        
+        time_layout.addWidget(self.bk_min_cb)
+        time_layout.addWidget(self.bk_period_cb)
+        time_layout.addStretch()
+        
+        self.bk_pet_id.setStyleSheet(style)
+        self.bk_room_cb.setStyleSheet(style)
+        self.bk_start.setStyleSheet(style)
+        
+        form.addRow("Pet ID Number:", self.bk_pet_id)
+        form.addRow("Target Playroom:", self.bk_room_cb)
+        form.addRow("Visit Date:", self.bk_start)
+        form.addRow("Estimated Arrival Time:", time_widget)
+        rp_lay.addLayout(form)
+        
+        book_btn = QPushButton("Validate & Lock Spot")
+        book_btn.setStyleSheet("background-color: #FFC107; font-weight: bold; padding: 10px; border-radius: 4px; border: none; color: black;")
+        book_btn.clicked.connect(self.process_booking)
+        rp_lay.addWidget(book_btn)
+        rp_lay.addStretch()
+        
+        split_layout.addWidget(right_panel, 4)
+        layout.addLayout(split_layout)
+        
+    def refresh_bookings_module(self):
+        try:
+            b_query = """
+                SELECT B.BookingID, P.Name, R.RoomName, B.StartDate, B.StartTime
+                FROM BOOKING B
+                JOIN PET P ON B.PetID = P.PetID
+                JOIN PLAYROOM R ON B.RoomID = R.RoomID
+                WHERE B.Status = 'Confirmed'
+                ORDER BY B.StartDate ASC;
+            """
+            self.c.execute(b_query)
+            bookings = self.c.fetchall()
+            self.bookings_table.setRowCount(0)
+            for r_idx, r_dat in enumerate(bookings):
+                self.bookings_table.insertRow(r_idx)
+                for c_idx, val in enumerate(r_dat):
+                    item = QTableWidgetItem(str(val))
+                    item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                    item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                    self.bookings_table.setItem(r_idx, c_idx, item)
+                    
+            self.bk_room_cb.clear()
+            self.c.execute("SELECT RoomID, RoomName, MaxCapacity FROM PLAYROOM;")
+            for r_id, r_name, r_cap in self.c.fetchall():
+                self.bk_room_cb.addItem(f"{r_name} (Max Capacity: {r_cap})", r_id)
+                
+            current_time = datetime.now()
+            hour_12 = current_time.hour % 12
+            if hour_12 == 0: hour_12 = 12
+            min_nearest = round(current_time.minute / 5) * 5
+            if min_nearest == 60: min_nearest = 55
+            
+            self.bk_hour_cb.setCurrentText(f"{hour_12:02d}")
+            self.bk_min_cb.setCurrentText(f"{min_nearest:02d}")
+            self.bk_period_cb.setCurrentText("PM" if current_time.hour >= 12 else "AM")
+            
+            self.bk_start.setDate(QDate.currentDate())
+        except Exception as e:
+            print(f"Bookings layout load error: {e}")
+
+    def process_booking(self):
+        try:
+            p_id_text = self.bk_pet_id.text().strip()
+            visit_date = self.bk_start.date().toString("yyyy-MM-dd")
+            arrival_time = f"{self.bk_hour_cb.currentText()}:{self.bk_min_cb.currentText()} {self.bk_period_cb.currentText()}"
+            room_id = self.bk_room_cb.currentData()
+            
+            if not p_id_text:
+                QMessageBox.warning(self, "Input Error", "Please provide a Pet ID Number to encode the reservation.")
+                return
+                
+            pet_id = int(p_id_text)
+            self.c.execute("SELECT Name FROM PET WHERE PetID = ?;", (pet_id,))
+            pet_data = self.c.fetchone()
+            
+            if not pet_data:
+                msg_box = QMessageBox(self)
+                msg_box.setIcon(QMessageBox.Question)
+                msg_box.setWindowTitle("Pet Not Found")
+                msg_box.setText(f"🛑 Pet ID '{pet_id}' does not exist in the directory.")
+                msg_box.setInformativeText("Would you like to redirect to the Registration page to add them?")
+                
+                yes_button = msg_box.addButton("Register Pet", QMessageBox.YesRole)
+                cancel_button = msg_box.addButton("Cancel", QMessageBox.NoRole)
+                msg_box.exec_()
+                
+                if msg_box.clickedButton() == yes_button:
+                    self.switch_page(2)
+                return
+            
+            pet_name = pet_data[0]
+            self.c.execute("SELECT RoomName, MaxCapacity FROM PLAYROOM WHERE RoomID = ?;", (room_id,))
+            room_name, max_cap = self.c.fetchone()
+
+            overlap_query = """
+                SELECT COUNT(*) FROM BOOKING 
+                WHERE RoomID = ? 
+                AND Status = 'Confirmed'
+                AND StartDate = ?;
+            """
+            self.c.execute(overlap_query, (room_id, visit_date))
+            conflicting_count = self.c.fetchone()[0]
+            
+            if conflicting_count >= max_cap:
+                QMessageBox.critical(
+                    self, 
+                    "Playroom Full", 
+                    f"🛑 Overbooking Blocked!\n\n"
+                    f"The '{room_name}' has already hit its max capacity limit of {max_cap} pets "
+                    f"for the requested period ({visit_date})."
+                )
+                return
+                
+            self.c.execute("""
+                INSERT INTO BOOKING (PetID, RoomID, StartDate, StartTime, Status)
+                VALUES (?, ?, ?, ?, 'Confirmed');
+            """, (pet_id, room_id, visit_date, arrival_time))
+            self.conn.commit()
+            
+            QMessageBox.information(self, "Spot Reserved", f"🎉 Advance reservation confirmed for {pet_name} inside {room_name}!")
+            self.bk_pet_id.clear()
+            self.refresh_bookings_module()
+            
+        except ValueError:
+            QMessageBox.warning(self, "Input Error", "Pet ID must be an integer tracking number format.")
+        except Exception as e:
+            self.conn.rollback()
+            QMessageBox.critical(self, "Database Error", f"Reservation transaction failed:\n{e}")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
