@@ -168,7 +168,7 @@ def build_page(app, layout):
     rp_lay.addLayout(form)
     
     rp_lay.addSpacing(20)
-    book_btn = QPushButton("Validate & Lock Spot")
+    book_btn = QPushButton("Validate and Book")
     book_btn.setObjectName("PrimaryBtn")
     book_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
     book_btn.clicked.connect(lambda: process_booking(app))

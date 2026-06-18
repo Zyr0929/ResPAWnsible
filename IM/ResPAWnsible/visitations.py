@@ -1,77 +1,104 @@
 from datetime import datetime
 from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFormLayout, 
                              QLineEdit, QComboBox, QPushButton, QMessageBox, 
-                             QLabel, QFrame, QTableWidget, QTableWidgetItem, 
-                             QHeaderView)
+                             QLabel, QFrame, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt5.QtCore import Qt
 
-TABLE_HEADER_STYLE = "QHeaderView::section { background-color: #4A352B; color: white; font-weight: bold; padding: 5px; border: none; }"
-
 def build_page(app, layout):
-    layout.setContentsMargins(25, 25, 25, 25)
-    layout.addWidget(QLabel("<h1 style='color: #3A271E; margin-bottom: 5px;'>🚪 Active Room Visitations Manager</h1>"))
+    layout.setContentsMargins(30, 30, 30, 30)
+    
+    title = QLabel("🚪 Active Room Visitations Manager")
+    title.setObjectName("Header1")
+    layout.addWidget(title)
+    
+    sub = QLabel("Monitor active pets in playrooms and process departures.")
+    sub.setStyleSheet("color: #757575; margin-top: 0px; margin-bottom: 15px;")
+    layout.addWidget(sub)
+    
+    split = QHBoxLayout()
+    
+    left_panel = QFrame()
+    left_panel.setObjectName("MainCard")
+    lp_lay = QVBoxLayout(left_panel)
+    lp_lay.setContentsMargins(20, 20, 20, 20)
+    
+    lp_header = QLabel("Active Room Visitations")
+    lp_header.setObjectName("SubHeader")
+    lp_lay.addWidget(lp_header)
     
     search_bar = QLineEdit()
     search_bar.setPlaceholderText("🔍 Search active visitations...")
-    search_bar.setStyleSheet("padding: 10px; border: 1px solid #CCC; border-radius: 6px; margin-bottom: 10px; font-size: 13px;")
     search_bar.textChanged.connect(lambda text: app.filter_table(text, app.visit_table))
-    layout.addWidget(search_bar)
+    lp_lay.addWidget(search_bar)
     
-    split = QHBoxLayout()
-    left = QFrame()
-    left.setStyleSheet("background: white; padding: 15px; border-radius: 8px; border: 1px solid #EAEAEA;")
-    lp = QVBoxLayout(left)
     app.visit_table = QTableWidget()
     app.visit_table.setColumnCount(7)
-    app.visit_table.setHorizontalHeaderLabels(["Visit ID", "Pet Name", "Owner", "Behavior Profile", "Room", "Type", "Start Time"])
-    app.visit_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-    app.visit_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-    app.visit_table.horizontalHeader().setStyleSheet(TABLE_HEADER_STYLE)
+    app.visit_table.setHorizontalHeaderLabels(["Visit ID", "Pet Name", "Owner", "Behavior", "Room", "Type", "Start Time"])
     
-    app.visit_table.verticalHeader().setVisible(False) # Hides row numbers
+    header = app.visit_table.horizontalHeader()
+    header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(1, QHeaderView.Stretch)
+    header.setSectionResizeMode(2, QHeaderView.Stretch)
+    header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(4, QHeaderView.Stretch)
+    header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+    header.setDefaultAlignment(Qt.AlignCenter)
     
-    app.visit_table.verticalHeader().setDefaultSectionSize(50)
+    app.visit_table.verticalHeader().setVisible(False)
+    app.visit_table.setFocusPolicy(Qt.NoFocus)
+    app.visit_table.setShowGrid(False)
     app.visit_table.setAlternatingRowColors(True)
-    app.visit_table.setStyleSheet("background-color: white; alternate-background-color: #FAFAFA; gridline-color: #E0E0E0;")
-    lp.addWidget(app.visit_table)
+    app.visit_table.verticalHeader().setDefaultSectionSize(50)
+    app.visit_table.setStyleSheet("""
+        QTableWidget { background-color: white; alternate-background-color: #FAFAFA; border: 1px solid #E5E0D8; border-radius: 6px; outline: none; }
+        QTableWidget::item { border-bottom: 1px solid #F0EDE5; padding-left: 10px; }
+        QTableWidget::item:selected { background-color: #FFF8E1; color: #3A271E; }
+    """)
+    app.visit_table.horizontalHeader().setStyleSheet("""
+        QHeaderView::section { background-color: #F0EDE5; color: #3A271E; font-weight: bold; padding: 10px; border: none; border-bottom: 2px solid #D6D0C4; }
+    """)
+    lp_lay.addWidget(app.visit_table)
     
-    co = QHBoxLayout()
+    co_lay = QHBoxLayout()
     app.co_notes = QLineEdit()
     app.co_notes.setPlaceholderText("Enter departure notes...")
-    app.co_notes.setStyleSheet("padding: 8px; border: 1px solid #CCC; border-radius: 4px;")
     co_btn = QPushButton("Check-Out")
-    co_btn.setStyleSheet("background: #EF5350; color: white; font-weight: bold; padding: 10px 15px; border-radius: 4px;")
+    co_btn.setStyleSheet("background: #EF5350; color: white; font-weight: bold; padding: 10px 20px; border-radius: 6px;")
     co_btn.clicked.connect(lambda: process_checkout(app))
-    co.addWidget(app.co_notes, 3)
-    co.addWidget(co_btn, 1)
-    lp.addLayout(co)
-    split.addWidget(left, 6)
+    co_lay.addWidget(app.co_notes, 3)
+    co_lay.addWidget(co_btn, 1)
+    lp_lay.addLayout(co_lay)
     
-    right = QFrame()
-    right.setFixedWidth(340)
-    right.setStyleSheet("background: white; padding: 20px; border-radius: 8px; border: 1px solid #EAEAEA;")
-    rp = QVBoxLayout(right)
-    rp.addWidget(QLabel("<h3 style='color: #4A352B;'>Walk-In Check-In</h3>"))
+    split.addWidget(left_panel, 6)
     
-    app.v_form = QFormLayout()
-    app.v_form.setSpacing(12)
-    app.v_pet_id, app.v_room_cb = QLineEdit(), QComboBox()
+    right_panel = QFrame()
+    right_panel.setObjectName("MainCard")
+    right_panel.setMinimumWidth(340)
+    rp_lay = QVBoxLayout(right_panel)
+    rp_lay.setContentsMargins(25, 25, 25, 25)
     
-    style = "padding: 8px; border: 1px solid #CCC; border-radius: 4px; background: white;"
-    for w in (app.v_pet_id, app.v_room_cb): w.setStyleSheet(style)
+    rp_header = QLabel("Walk-In Check-In")
+    rp_header.setObjectName("SubHeader")
+    rp_lay.addWidget(rp_header)
     
-    app.make_searchable(app.v_room_cb, allow_new=False)
+    form = QFormLayout()
+    form.setSpacing(15)
+    app.v_pet_id = QLineEdit()
+    app.v_room_cb = QComboBox()
+    app.make_searchable(app.v_room_cb, allow_new=False, locked=True)
     
-    app.v_form.addRow("Pet ID:", app.v_pet_id)
-    app.v_form.addRow("Playroom:", app.v_room_cb)
-    rp.addLayout(app.v_form)
+    form.addRow("Pet ID:", app.v_pet_id)
+    form.addRow("Playroom:", app.v_room_cb)
+    rp_lay.addLayout(form)
     
     cin_btn = QPushButton("Verify & Check-In")
-    cin_btn.setStyleSheet("background: #4CAF50; color: white; font-weight: bold; padding: 12px; border-radius: 6px; margin-top: 10px;")
+    cin_btn.setObjectName("PrimaryBtn")
     cin_btn.clicked.connect(lambda: process_checkin(app))
-    rp.addWidget(cin_btn)
-    rp.addStretch()
-    split.addWidget(right, 4)
+    rp_lay.addWidget(cin_btn)
+    rp_lay.addStretch()
+    
+    split.addWidget(right_panel, 4)
     layout.addLayout(split)
 
 def refresh(app):
@@ -94,11 +121,8 @@ def refresh(app):
                 if c_idx == 3 and val:
                     app.visit_table.setCellWidget(r_idx, c_idx, app.create_tag_pill(str(val), 0))
                 else:
-                    item = QTableWidgetItem()
-                    if isinstance(val, (int, float)): item.setData(Qt.DisplayRole, val)
-                    else: item.setData(Qt.DisplayRole, str(val if val is not None else "N/A"))
-                    item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                    item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                    item = QTableWidgetItem(str(val if val is not None else "N/A"))
+                    item.setTextAlignment(Qt.AlignCenter)
                     app.visit_table.setItem(r_idx, c_idx, item)
         app.visit_table.setSortingEnabled(True)
         
