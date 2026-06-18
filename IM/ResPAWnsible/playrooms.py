@@ -79,17 +79,26 @@ def build_page(app, layout):
     app.cam_widgets = []
     app.expanded_cam = None
     
+    camera_mapping = {
+        "Friendly Room": 0,  
+    }
+    
     row, col = 0, 0
     for i, room in enumerate(rooms):
-        safe_cam_id = 0 if i == 0 else None
+        # Look up the room name in the dictionary. If not found, use None.
+        safe_cam_id = camera_mapping.get(room, None)
+        
         cam_widget = CameraFeed(camera_id=safe_cam_id, name=room)
         cam_widget.clicked_signal.connect(lambda cam: toggle_camera_zoom(app, cam))
+        
         app.cam_grid.addWidget(cam_widget, row, col)
         app.cam_widgets.append(cam_widget)
+        
         col += 1
         if col > 2:
             col = 0
             row += 1
+            
     layout.addStretch()
 
 def toggle_camera_zoom(app, clicked_cam):

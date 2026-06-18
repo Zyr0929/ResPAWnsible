@@ -23,10 +23,13 @@ def build_page(app, layout):
     lp = QVBoxLayout(left)
     app.visit_table = QTableWidget()
     app.visit_table.setColumnCount(7)
-    app.visit_table.setHorizontalHeaderLabels(["ID", "Pet Name", "Owner", "Behavior Profile", "Room", "Type", "Start Time"])
+    app.visit_table.setHorizontalHeaderLabels(["Visit ID", "Pet Name", "Owner", "Behavior Profile", "Room", "Type", "Start Time"])
     app.visit_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
     app.visit_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
     app.visit_table.horizontalHeader().setStyleSheet(TABLE_HEADER_STYLE)
+    
+    app.visit_table.verticalHeader().setVisible(False) # Hides row numbers
+    
     app.visit_table.verticalHeader().setDefaultSectionSize(50)
     app.visit_table.setAlternatingRowColors(True)
     app.visit_table.setStyleSheet("background-color: white; alternate-background-color: #FAFAFA; gridline-color: #E0E0E0;")
@@ -52,18 +55,15 @@ def build_page(app, layout):
     
     app.v_form = QFormLayout()
     app.v_form.setSpacing(12)
-    app.v_pet_id, app.v_room_cb, app.v_type = QLineEdit(), QComboBox(), QComboBox()
-    app.v_type.addItems(["Walk-in", "Reservation"])
+    app.v_pet_id, app.v_room_cb = QLineEdit(), QComboBox()
     
     style = "padding: 8px; border: 1px solid #CCC; border-radius: 4px; background: white;"
-    for w in (app.v_pet_id, app.v_room_cb, app.v_type): w.setStyleSheet(style)
+    for w in (app.v_pet_id, app.v_room_cb): w.setStyleSheet(style)
     
     app.make_searchable(app.v_room_cb, allow_new=False)
-    app.make_searchable(app.v_type, allow_new=False)
     
     app.v_form.addRow("Pet ID:", app.v_pet_id)
     app.v_form.addRow("Playroom:", app.v_room_cb)
-    app.v_form.addRow("Type:", app.v_type)
     rp.addLayout(app.v_form)
     
     cin_btn = QPushButton("Verify & Check-In")
@@ -92,7 +92,7 @@ def refresh(app):
             app.visit_table.insertRow(r_idx)
             for c_idx, val in enumerate(row):
                 if c_idx == 3 and val:
-                    app.visit_table.setCellWidget(r_idx, c_idx, app.create_tag_pill(str(val)))
+                    app.visit_table.setCellWidget(r_idx, c_idx, app.create_tag_pill(str(val), 0))
                 else:
                     item = QTableWidgetItem()
                     if isinstance(val, (int, float)): item.setData(Qt.DisplayRole, val)
@@ -119,14 +119,17 @@ def process_checkin(app):
     
     try:
         is_safe, msg = app.run_safety_matrix(int(p_id), r_id)
-        if not is_safe: return QMessageBox.critical(app, "DENIED", msg)
+        if not is_safe:
+            return QMessageBox.critical(app, "DENIED", msg)
 
-        app.c.execute("INSERT INTO VISIT (PetID, RoomID, VisitType, VisitDate, StartTime, Notes) VALUES (?, ?, ?, ?, ?, 'Cleared.');", 
-                       (int(p_id), r_id, app.v_type.currentText(), datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M:%S")))
+        visit_id = app.generate_unique_visit_id()
+
+        app.c.execute("INSERT INTO VISIT (VisitID, PetID, RoomID, VisitType, VisitDate, StartTime, Notes) VALUES (?, ?, ?, ?, ?, ?, 'Cleared.');", 
+                       (visit_id, int(p_id), r_id, 'Walk-in', datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M:%S")))
         app.conn.commit()
         app.v_pet_id.clear()
         refresh(app)
-        QMessageBox.information(app, "Check-In Success", f"Safety verified. {msg} tracked inside safely.")
+        QMessageBox.information(app, "Check-In Success", f"Safety verified. {msg} tracked inside safely.\n\nVisit Tracking ID: {visit_id}")
     except Exception as e: QMessageBox.critical(app, "Error", str(e))
 
 def process_checkout(app):

@@ -2,8 +2,8 @@ import sys, os, sqlite3, random
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, 
                              QVBoxLayout, QPushButton, QLabel, QFrame, 
-                             QStackedWidget, QComboBox, QCompleter)
-from PyQt5.QtCore import Qt
+                             QStackedWidget, QComboBox, QCompleter, QDialog, QMessageBox)
+from PyQt5.QtCore import Qt, pyqtSignal
 
 import dashboard
 import playrooms
@@ -12,6 +12,7 @@ import directory
 import bookings
 import visitations
 import safety
+import history
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 db_path = os.path.join(BASE_DIR, 'ResPAWnsible(Real).db')
@@ -124,6 +125,7 @@ class ResPAWnsibleApp(QMainWindow):
                 selection-color: #333;
             }
         """)
+        
 
     def init_db(self):
         self.conn = sqlite3.connect(db_path)
@@ -144,10 +146,25 @@ class ResPAWnsibleApp(QMainWindow):
             self.c.execute("SELECT TagID, Behavior FROM BEHAVIOR_TAG;")
             self.tags = self.c.fetchall()
 
+
     def generate_unique_pet_id(self):
         while True:
             new_id = random.randint(100000, 999999)
             self.c.execute("SELECT 1 FROM PET WHERE PetID = ?", (new_id,))
+            if not self.c.fetchone():
+                return new_id
+
+    def generate_unique_booking_id(self):
+        while True:
+            new_id = random.randint(100000, 999999)
+            self.c.execute("SELECT 1 FROM BOOKING WHERE BookingID = ?", (new_id,))
+            if not self.c.fetchone():
+                return new_id
+
+    def generate_unique_visit_id(self):
+        while True:
+            new_id = random.randint(100000, 999999)
+            self.c.execute("SELECT 1 FROM VISIT WHERE VisitID = ?", (new_id,))
             if not self.c.fetchone():
                 return new_id
 
@@ -225,26 +242,73 @@ class ResPAWnsibleApp(QMainWindow):
         except Exception as e: print(e)
         return alerts
 
-    def create_tag_pill(self, text):
-        lbl = QLabel(text)
-        lbl.setAlignment(Qt.AlignCenter)    
+    def create_tag_pill(self, text, pet_id):
         text_lower = text.lower()
-        if "aggressive" in text_lower or "solo" in text_lower: bg, fg, border = "#FFEBEE", "#C62828", "#FFCDD2"
-        elif "calm" in text_lower: bg, fg, border = "#F3E5F5", "#6A1B9A", "#E1BEE7"
-        elif "hyperactive" in text_lower or "playful" in text_lower: bg, fg, border = "#E3F2FD", "#1565C0", "#BBDEFB"
-        elif "nervous" in text_lower or "fearful" in text_lower: bg, fg, border = "#FFF3E0", "#E65100", "#FFE0B2"
-        else: bg, fg, border = "#F5F5F5", "#424242", "#E0E0E0"
+        if "aggressive" in text_lower or "solo" in text_lower:
+            bg, fg, border = "#FFEBEE", "#C62828", "#FFCDD2"
+        elif "calm" in text_lower:
+            bg, fg, border = "#F3E5F5", "#6A1B9A", "#E1BEE7"
+        elif "hyperactive" in text_lower or "playful" in text_lower:
+            bg, fg, border = "#E3F2FD", "#1565C0", "#BBDEFB"
+        elif "nervous" in text_lower or "fearful" in text_lower:
+            bg, fg, border = "#FFF3E0", "#E65100", "#FFE0B2"
+        else:
+            bg, fg, border = "#F5F5F5", "#424242", "#E0E0E0"
 
-        lbl.setStyleSheet(f"background-color: {bg}; color: {fg}; border: 1px solid {border}; border-radius: 12px; padding: 4px 14px; font-weight: bold; font-size: 11px;")
         container = QWidget()
         lay = QHBoxLayout(container)
         lay.setContentsMargins(5, 2, 5, 2)
         
-        lay.addStretch()
-        lay.addWidget(lbl)
-        lay.addStretch()
+        btn = QPushButton(f"⋮ {text}")
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {bg}; 
+                color: {fg}; 
+                border: 1px solid {border}; 
+                border-radius: 12px; 
+                padding: 4px 10px; 
+                font-weight: bold; 
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: {border};
+            }}
+        """)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(lambda: self.show_behavior_editor(pet_id, text))
         
+        lay.addWidget(btn)
+        lay.addStretch()
         return container
+
+    def show_behavior_editor(self, pet_id, current_behavior):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Behavior")
+        dialog.setFixedWidth(300)
+        lay = QVBoxLayout(dialog)
+        lay.addWidget(QLabel(f"<b>Select new behavior for Pet ID: {pet_id}</b>"))
+        
+        cb = QComboBox()
+        for t_id, t_name in self.tags: cb.addItem(t_name, t_id)
+        cb.setCurrentText(current_behavior)
+        lay.addWidget(cb)
+        
+        btn = QPushButton("Confirm Change")
+        btn.setStyleSheet("background: #FFC107; font-weight: bold; padding: 8px;")
+        btn.clicked.connect(lambda: self.update_behavior_db(pet_id, cb.currentData(), dialog))
+        lay.addWidget(btn)
+        dialog.exec_()
+
+    def update_behavior_db(self, pet_id, tag_id, dialog):
+        reply = QMessageBox.question(self, "Confirm", "Update this pet's behavioral tag?", QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            try:
+                self.c.execute("UPDATE PET_TAG SET TagID = ? WHERE PetID = ?", (tag_id, pet_id))
+                self.conn.commit()
+                dialog.accept()
+                directory.refresh(self) # Refresh the directory table automatically
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
 
     def filter_table(self, text, table):
         search_text = text.lower()
@@ -281,7 +345,7 @@ class ResPAWnsibleApp(QMainWindow):
 
         self.nav_btns = []
         nav_items = [("📊", "Dashboard"), ("📹", "Live Playrooms"), ("🐾", "Register Pet"), 
-                     ("📋", "Pet Directory"), ("📅", "Bookings"), ("🚪", "Visitations"), ("🛡️", "Safety Reports")]
+                     ("📋", "Pet Directory"), ("📅", "Bookings"), ("🚪", "Visitations"), ("🛡️", "Safety Reports"), ("🕰️", "History")]
         
         self.stack = QStackedWidget()
         
@@ -301,6 +365,7 @@ class ResPAWnsibleApp(QMainWindow):
             elif i == 4: bookings.build_page(self, p_layout)
             elif i == 5: visitations.build_page(self, p_layout)
             elif i == 6: safety.build_page(self, p_layout)
+            elif i == 7: history.build_page(self, p_layout)
             self.stack.addWidget(page)
             
         side_layout.addStretch()
@@ -311,6 +376,7 @@ class ResPAWnsibleApp(QMainWindow):
         main_layout.addWidget(self.stack)
         
         self.switch_page(0)
+    
 
     def switch_page(self, index):
         self.stack.setCurrentIndex(index)
@@ -326,6 +392,7 @@ class ResPAWnsibleApp(QMainWindow):
         elif index == 4: bookings.refresh(self)
         elif index == 5: visitations.refresh(self)
         elif index == 6: safety.refresh(self)
+        elif index == 7: history.refresh(self)
 
     def run_safety_matrix(self, pet_id, room_id, check_occupants=True):
         self.c.execute("SELECT P.Name, P.Weight_lbs, BT.Behavior, B.BreedType FROM PET P LEFT JOIN BREED B ON P.PetID=B.PetID LEFT JOIN PET_TAG PT ON P.PetID=PT.PetID LEFT JOIN BEHAVIOR_TAG BT ON PT.TagID=BT.TagID WHERE P.PetID=?;", (pet_id,))
@@ -421,6 +488,7 @@ class ResPAWnsibleApp(QMainWindow):
             
         if not allow_new:
             combobox.setInsertPolicy(QComboBox.NoInsert)
+    
 
 if __name__ == '__main__':
     if hasattr(Qt, 'AA_EnableHighDpiScaling'):

@@ -5,6 +5,45 @@ from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFormLayout,
                              QHeaderView, QDateEdit, QDialog, QTimeEdit)
 from PyQt5.QtCore import Qt, QDate, QTime
 
+def apply_calendar_style(date_edit):
+    calendar = date_edit.calendarWidget()
+    calendar.setMinimumSize(325, 275) 
+    calendar.setStyleSheet("""
+        QCalendarWidget QWidget#qt_calendar_navigationbar { 
+            background-color: #3A271E; 
+            border: none; 
+            padding: 10px; 
+        }
+        
+        QCalendarWidget QToolButton { 
+            color: white; 
+            font-weight: bold; 
+            font-size: 16px; 
+            border: none; 
+            padding: 5px;
+        }
+        QCalendarWidget QToolButton:hover { 
+            background-color: #5D4037; 
+            border-radius: 4px;
+        }
+
+        QCalendarWidget QTableView { 
+            background-color: white; 
+            selection-background-color: #FFC107; 
+            selection-color: #3A271E; 
+            font-size: 14px; 
+            gridline-color: #F0EDE5;
+        }
+
+        QCalendarWidget QAbstractItemView:enabled { 
+            color: #3A271E;
+        }
+
+        QCalendarWidget QAbstractItemView:disabled { 
+            color: #D6D0C4; 
+        }
+    """)   
+
 def build_page(app, layout):
     layout.setContentsMargins(30, 30, 30, 30)
     
@@ -99,9 +138,10 @@ def build_page(app, layout):
     app.make_searchable(app.bk_room_cb, allow_new=False, locked=True)
     
     app.bk_start = QDateEdit()
-    app.bk_start.setCalendarPopup(True)
+    app.bk_start.setCalendarPopup(True) 
     app.bk_start.setDate(QDate.currentDate())
     app.bk_start.setMinimumDate(QDate.currentDate())
+    apply_calendar_style(app.bk_start)
     app.bk_start.setFocusPolicy(Qt.NoFocus)
     
     app.bk_hour_cb, app.bk_min_cb, app.bk_period_cb = QComboBox(), QComboBox(), QComboBox()
@@ -226,11 +266,14 @@ def insta_checkin_booking(app):
         
         if dialog.exec_() == QDialog.Accepted:
             actual_time = time_edit.time().toString("hh:mm A")
-            app.c.execute("INSERT INTO VISIT (PetID, RoomID, VisitType, VisitDate, StartTime, Notes) VALUES (?, ?, ?, ?, ?, 'Insta Check-in.');", 
-                           (pet_id, room_id, 'Reservation', today, actual_time))
+
+            visit_id = app.generate_unique_visit_id()
+            
+            app.c.execute("INSERT INTO VISIT (VisitID, PetID, RoomID, VisitType, VisitDate, StartTime, Notes) VALUES (?, ?, ?, ?, ?, ?, 'Insta Check-in.');", 
+                           (visit_id, pet_id, room_id, 'Reservation', today, actual_time))
             app.c.execute("UPDATE BOOKING SET Status='Checked-In' WHERE BookingID=?;", (b_id,))
             app.conn.commit()
-            QMessageBox.information(app, "Success", f"{msg} successfully checked in!")
+            QMessageBox.information(app, "Success", f"{msg} successfully checked in!\n\nVisit Tracking ID: {visit_id}")
             refresh(app)
     except Exception as e: QMessageBox.critical(app, "Error", str(e))
 
@@ -292,9 +335,12 @@ def process_booking(app):
         if same_hour_count >= max_cap:
             return QMessageBox.critical(app, "Playroom Full", f"🛑 Overbooking Blocked!\n'{room_name}' is at capacity ({max_cap}/{max_cap}) for the {arrival_dt.strftime('%I %p')} hour block on {visit_date}.")
             
-        app.c.execute("INSERT INTO BOOKING (PetID, RoomID, StartDate, StartTime, Status) VALUES (?, ?, ?, ?, 'Confirmed');", (pet_id, room_id, visit_date, arrival_time))
+        booking_id = app.generate_unique_booking_id()
+        
+        app.c.execute("INSERT INTO BOOKING (BookingID, PetID, RoomID, StartDate, StartTime, Status) VALUES (?, ?, ?, ?, ?, 'Confirmed');", 
+                      (booking_id, pet_id, room_id, visit_date, arrival_time))
         app.conn.commit()
-        QMessageBox.information(app, "Spot Reserved", f"🎉 Advance reservation confirmed for {pet_name} in {room_name}!")
+        QMessageBox.information(app, "Spot Reserved", f"🎉 Advance reservation confirmed for {pet_name} in {room_name}!\n\nBooking Tracking ID: {booking_id}")
         app.bk_pet_id.clear()
         refresh(app)
         

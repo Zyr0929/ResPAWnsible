@@ -89,9 +89,10 @@ def refresh(app):
         app.pets_table.setRowCount(0)
         for r_idx, row in enumerate(rows):
             app.pets_table.insertRow(r_idx)
+            pet_id = row[0]  
             for c_idx, val in enumerate(row):
                 if c_idx == 5 and val:
-                    app.pets_table.setCellWidget(r_idx, c_idx, app.create_tag_pill(str(val)))
+                    app.pets_table.setCellWidget(r_idx, c_idx, app.create_tag_pill(str(val), pet_id))
                 else:
                     item = QTableWidgetItem()
                     if isinstance(val, (int, float)): item.setData(Qt.DisplayRole, val)
