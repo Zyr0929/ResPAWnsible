@@ -1,9 +1,10 @@
-import sys, os, sqlite3, random
+import sys, os, sqlite3, random, ctypes
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, 
                              QVBoxLayout, QPushButton, QLabel, QFrame, 
                              QStackedWidget, QComboBox, QCompleter, QDialog, QMessageBox)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal  
+from PyQt5.QtGui import QPixmap, QIcon
 
 import dashboard
 import playrooms
@@ -21,6 +22,9 @@ class ResPAWnsibleApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ResPAWnsible - Safety-First Boarding")
+        logo_path = os.path.join(BASE_DIR, 'icon.png')
+        if os.path.exists(logo_path):
+            self.setWindowIcon(QIcon(logo_path))
         self.resize(1200, 700)
         self.setStyleSheet("background-color: #FDFBF7; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px;")
         self.init_db()
@@ -306,7 +310,7 @@ class ResPAWnsibleApp(QMainWindow):
                 self.c.execute("UPDATE PET_TAG SET TagID = ? WHERE PetID = ?", (tag_id, pet_id))
                 self.conn.commit()
                 dialog.accept()
-                directory.refresh(self) # Refresh the directory table automatically
+                directory.refresh(self) 
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
 
@@ -339,7 +343,22 @@ class ResPAWnsibleApp(QMainWindow):
         sidebar.setStyleSheet("background-color: #3A271E; color: white;")
         side_layout = QVBoxLayout(sidebar)
         
-        logo_lbl = QLabel("<h2>ResPAWnsible</h2><p style='color: #FFC107;'>Safety-First Boarding</p>")
+        logo_img_lbl = QLabel()
+        logo_path = os.path.join(BASE_DIR, 'logo.png')
+        
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            pixmap = pixmap.scaledToWidth(240, Qt.SmoothTransformation) 
+            logo_img_lbl.setPixmap(pixmap)
+        else:
+            logo_img_lbl.setText("🐾") 
+            logo_img_lbl.setStyleSheet("font-size: 50px;")
+            
+        logo_img_lbl.setAlignment(Qt.AlignCenter)
+        side_layout.addWidget(logo_img_lbl)
+        
+        logo_lbl = QLabel("<p style='color: #FFC107;'>Safety-First Boarding</p>")
+        logo_lbl.setAlignment(Qt.AlignCenter) 
         logo_lbl.setStyleSheet("margin-bottom: 15px;")
         side_layout.addWidget(logo_lbl)
 
@@ -491,6 +510,12 @@ class ResPAWnsibleApp(QMainWindow):
     
 
 if __name__ == '__main__':
+    try:
+        myappid = 'respawnsible.app.boarding.1' 
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
     if hasattr(Qt, 'AA_EnableHighDpiScaling'):
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
