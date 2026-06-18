@@ -5,44 +5,73 @@ from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFormLayout,
                              QHeaderView, QDateEdit, QDialog, QTimeEdit)
 from PyQt5.QtCore import Qt, QDate, QTime
 
-TABLE_HEADER_STYLE = "QHeaderView::section { background-color: #4A352B; color: white; font-weight: bold; padding: 5px; border: none; }"
-
 def build_page(app, layout):
-    layout.setContentsMargins(25, 25, 25, 25)
-    layout.addWidget(QLabel("<h1 style='color: #3A271E; margin-bottom: 5px;'>📅 Advance Reservations Manager</h1>"))
+    layout.setContentsMargins(30, 30, 30, 30)
+    
+    title = QLabel("📅 Advance Reservations Manager")
+    title.setObjectName("Header1")
+    layout.addWidget(title)
+    
+    sub = QLabel("Schedule and manage upcoming playroom visits.")
+    sub.setStyleSheet("color: #757575; margin-top: 0px; margin-bottom: 15px;")
+    layout.addWidget(sub)
     
     split_layout = QHBoxLayout()
+    
     left_panel = QFrame()
-    left_panel.setStyleSheet("background-color: white; border: 1px solid #EAEAEA; border-radius: 8px; padding: 15px;")
+    left_panel.setObjectName("MainCard")
     lp_lay = QVBoxLayout(left_panel)
-    lp_lay.addWidget(QLabel("<h3 style='color: #4A352B; margin-bottom: 5px;'>Upcoming Scheduled Slots</h3>"))
+    lp_lay.setContentsMargins(20, 20, 20, 20)
+    
+    lp_header = QLabel("Upcoming Scheduled Slots")
+    lp_header.setObjectName("SubHeader")
+    lp_lay.addWidget(lp_header)
     
     search_bar = QLineEdit()
     search_bar.setPlaceholderText("🔍 Search reservations...")
-    search_bar.setStyleSheet("padding: 8px; border: 1px solid #CCC; border-radius: 4px; margin-bottom: 10px;")
     search_bar.textChanged.connect(lambda text: app.filter_table(text, app.bookings_table))
     lp_lay.addWidget(search_bar)
     
     app.bookings_table = QTableWidget()
     app.bookings_table.setColumnCount(6)
     app.bookings_table.setHorizontalHeaderLabels(["Booking ID", "Pet Name", "Owner", "Room Slot", "Visit Date", "Arrival Time"])
-    app.bookings_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-    app.bookings_table.horizontalHeader().setStyleSheet(TABLE_HEADER_STYLE)
-    app.bookings_table.verticalHeader().setDefaultSectionSize(45)
+    
+    header = app.bookings_table.horizontalHeader()
+    header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(1, QHeaderView.Stretch)
+    header.setSectionResizeMode(2, QHeaderView.Stretch)
+    header.setSectionResizeMode(3, QHeaderView.Stretch)
+    header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+    header.setDefaultAlignment(Qt.AlignCenter)
+    
+    app.bookings_table.verticalHeader().setVisible(False)
+    app.bookings_table.setFocusPolicy(Qt.NoFocus)
+    app.bookings_table.setShowGrid(False)
     app.bookings_table.setAlternatingRowColors(True)
-    app.bookings_table.setStyleSheet("background-color: white; alternate-background-color: #FAFAFA; gridline-color: #E0E0E0;")
+    app.bookings_table.verticalHeader().setDefaultSectionSize(50)
+    app.bookings_table.setStyleSheet("""
+        QTableWidget { background-color: white; alternate-background-color: #FAFAFA; border: 1px solid #E5E0D8; border-radius: 6px; outline: none; }
+        QTableWidget::item { border-bottom: 1px solid #F0EDE5; padding-left: 10px; }
+        QTableWidget::item:selected { background-color: #FFF8E1; color: #3A271E; }
+    """)
+    app.bookings_table.horizontalHeader().setStyleSheet("""
+        QHeaderView::section { background-color: #F0EDE5; color: #3A271E; font-weight: bold; padding: 10px; border: none; border-bottom: 2px solid #D6D0C4; }
+    """)
     lp_lay.addWidget(app.bookings_table)
     
     action_lay = QHBoxLayout()
     action_lay.addStretch()
     
     cancel_btn = QPushButton("❌ Cancel Booking")
-    cancel_btn.setStyleSheet("background-color: #EF5350; color: white; font-weight: bold; padding: 10px 15px; border-radius: 4px;")
+    cancel_btn.setStyleSheet("background-color: #FFEBEE; color: #C62828; font-weight: bold; padding: 10px 20px; border-radius: 6px; border: 1px solid #EF9A9A;")
+    cancel_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
     cancel_btn.clicked.connect(lambda: cancel_booking(app))
     action_lay.addWidget(cancel_btn)
     
-    insta_btn = QPushButton("⚡ Insta Check-In Selected")
-    insta_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px 15px; border-radius: 4px;")
+    insta_btn = QPushButton("⚡ Check-In Selected")
+    insta_btn.setStyleSheet("background-color: #E8F5E9; color: #2E7D32; font-weight: bold; padding: 10px 20px; border-radius: 6px; border: 1px solid #A5D6A7;")
+    insta_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
     insta_btn.clicked.connect(lambda: insta_checkin_booking(app))
     action_lay.addWidget(insta_btn)
     
@@ -50,21 +79,30 @@ def build_page(app, layout):
     split_layout.addWidget(left_panel, 6)
     
     right_panel = QFrame()
-    right_panel.setFixedWidth(340)
-    right_panel.setStyleSheet("background-color: white; border: 1px solid #EAEAEA; border-radius: 8px; padding: 20px;")
+    right_panel.setObjectName("MainCard")
+    right_panel.setMinimumWidth(380) 
+    right_panel.setMaximumWidth(450)
+    
     rp_lay = QVBoxLayout(right_panel)
-    rp_lay.addWidget(QLabel("<h3 style='color: #4A352B;'>Encode Phone Reservation</h3>"))
+    rp_lay.setContentsMargins(25, 25, 25, 25)
+    
+    rp_header = QLabel("Encode Reservation")
+    rp_header.setObjectName("SubHeader")
+    rp_lay.addWidget(rp_header)
+    rp_lay.addSpacing(10)
     
     form = QFormLayout()
-    form.setSpacing(12)
-    app.bk_pet_id, app.bk_room_cb = QLineEdit(), QComboBox()
+    form.setSpacing(15)
     
-    style = "padding: 8px; border: 1px solid #CCC; border-radius: 4px; background: white;"
+    app.bk_pet_id = QLineEdit()
+    app.bk_room_cb = QComboBox()
+    app.make_searchable(app.bk_room_cb, allow_new=False, locked=True)
+    
     app.bk_start = QDateEdit()
     app.bk_start.setCalendarPopup(True)
-    app.bk_start.calendarWidget().setStyleSheet("QCalendarWidget QWidget { color: black; }")
     app.bk_start.setDate(QDate.currentDate())
     app.bk_start.setMinimumDate(QDate.currentDate())
+    app.bk_start.setFocusPolicy(Qt.NoFocus)
     
     app.bk_hour_cb, app.bk_min_cb, app.bk_period_cb = QComboBox(), QComboBox(), QComboBox()
     app.bk_hour_cb.addItems([f"{i:02d}" for i in range(1, 13)])
@@ -72,19 +110,16 @@ def build_page(app, layout):
     app.bk_period_cb.addItems(["AM", "PM"])
     
     for cb in (app.bk_hour_cb, app.bk_min_cb, app.bk_period_cb): 
-        cb.setMinimumWidth(65)
-        cb.setStyleSheet(style)
-        app.make_searchable(cb, allow_new=False)
+        app.make_searchable(cb, allow_new=False, locked=True)
         
-    app.make_searchable(app.bk_room_cb, allow_new=False)
-    
     time_widget = QWidget()
     time_layout = QHBoxLayout(time_widget)
     time_layout.setContentsMargins(0, 0, 0, 0)
-    time_layout.addWidget(app.bk_hour_cb); time_layout.addWidget(QLabel("<b>:</b>"))
-    time_layout.addWidget(app.bk_min_cb); time_layout.addWidget(app.bk_period_cb)
-    
-    for w in (app.bk_pet_id, app.bk_room_cb, app.bk_start): w.setStyleSheet(style)
+    time_layout.setSpacing(8)
+    time_layout.addWidget(app.bk_hour_cb)
+    time_layout.addWidget(QLabel("<b>:</b>"))
+    time_layout.addWidget(app.bk_min_cb)
+    time_layout.addWidget(app.bk_period_cb)
     
     form.addRow("Pet ID:", app.bk_pet_id)
     form.addRow("Playroom:", app.bk_room_cb)
@@ -92,8 +127,10 @@ def build_page(app, layout):
     form.addRow("Time:", time_widget)
     rp_lay.addLayout(form)
     
+    rp_lay.addSpacing(20)
     book_btn = QPushButton("Validate & Lock Spot")
-    book_btn.setStyleSheet("background-color: #FFC107; font-weight: bold; padding: 12px; border-radius: 6px; margin-top: 10px;")
+    book_btn.setObjectName("PrimaryBtn")
+    book_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
     book_btn.clicked.connect(lambda: process_booking(app))
     rp_lay.addWidget(book_btn)
     rp_lay.addStretch()
@@ -120,7 +157,7 @@ def refresh(app):
                 if isinstance(val, (int, float)): item.setData(Qt.DisplayRole, val)
                 else: item.setData(Qt.DisplayRole, str(val if val is not None else "N/A"))
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                item.setTextAlignment(Qt.AlignCenter)
                 app.bookings_table.setItem(r_idx, c_idx, item)
         app.bookings_table.setSortingEnabled(True)
         
@@ -172,7 +209,7 @@ def insta_checkin_booking(app):
         dialog = QDialog(app)
         dialog.setWindowTitle("Confirm Check-In Time")
         dialog.setFixedSize(320, 160)
-        dialog.setStyleSheet("background: white; font-family: Arial;")
+        dialog.setStyleSheet("background: white; font-family: 'Segoe UI', Arial;")
         l = QVBoxLayout(dialog)
         l.addWidget(QLabel(f"Validating check-in for <b>{msg}</b>.<br><br>Adjust actual arrival time below:"))
         

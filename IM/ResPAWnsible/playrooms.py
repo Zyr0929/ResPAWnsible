@@ -41,7 +41,7 @@ class CameraFeed(QWidget):
         super().mousePressEvent(event)
 
 class VideoThread(QThread):
-    frame_signal = pyqtSignal(QImage)
+    frame_signal = pyqtSignal(object) 
     error_signal = pyqtSignal()
     def __init__(self, camera_id):
         super().__init__()

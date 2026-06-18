@@ -1,32 +1,79 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView, QFrame
 from PyQt5.QtCore import Qt
 
-TABLE_HEADER_STYLE = "QHeaderView::section { background-color: #4A352B; color: white; font-weight: bold; padding: 5px; border: none; }"
-
 def build_page(app, layout):
-    layout.setContentsMargins(25, 25, 25, 25)
-    layout.addWidget(QLabel("<h1 style='color: #3A271E; margin-bottom: 5px;'>📋 Pet Directory</h1>"))
+    layout.setContentsMargins(30, 30, 30, 30)
+
+    title = QLabel("📋 Pet Directory")
+    title.setObjectName("Header1")
+    layout.addWidget(title)
+    
+    sub = QLabel("Search, view, and manage all registered pets.")
+    sub.setStyleSheet("color: #757575; margin-top: 0px; margin-bottom: 15px;")
+    layout.addWidget(sub)
+    
+    card = QFrame()
+    card.setObjectName("MainCard")
+    card_lay = QVBoxLayout(card)
+    card_lay.setContentsMargins(25, 25, 25, 25)
+    card_lay.setSpacing(15)
     
     search_bar = QLineEdit()
     search_bar.setPlaceholderText("🔍 Search by ID, Name, Owner, Breed, or Behavior...")
-    search_bar.setStyleSheet("padding: 10px; border: 1px solid #CCC; border-radius: 6px; margin-bottom: 10px; font-size: 13px;")
     search_bar.textChanged.connect(lambda text: app.filter_table(text, app.pets_table))
-    layout.addWidget(search_bar)
+    card_lay.addWidget(search_bar)
     
     app.pets_table = QTableWidget()
     app.pets_table.setColumnCount(6)
     app.pets_table.setHorizontalHeaderLabels(["Pet ID", "Pet Name", "Owner", "Weight (kg)", "Breed / Species", "Behavior Profile"])
-    app.pets_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-    app.pets_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
-    app.pets_table.horizontalHeader().setStyleSheet(TABLE_HEADER_STYLE)
-    app.pets_table.verticalHeader().setDefaultSectionSize(50) 
-    app.pets_table.setAlternatingRowColors(True)
-    app.pets_table.setStyleSheet("background-color: white; alternate-background-color: #FAFAFA; gridline-color: #E0E0E0; border-radius: 8px;")
+    header = app.pets_table.horizontalHeader()
+    header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(1, QHeaderView.Stretch)
+    header.setSectionResizeMode(2, QHeaderView.Stretch)
+    header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(5, QHeaderView.Stretch)
     
-    # Enable the copy-to-clipboard functionality when a cell is clicked
+    app.pets_table.verticalHeader().setVisible(False)
+    app.pets_table.setFocusPolicy(Qt.NoFocus)
+    app.pets_table.setShowGrid(False)
+    app.pets_table.setAlternatingRowColors(True)
+    app.pets_table.verticalHeader().setDefaultSectionSize(55)
+    app.pets_table.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
+    
+    app.pets_table.setStyleSheet("""
+        QTableWidget {
+            background-color: white; 
+            alternate-background-color: #FAFAFA;
+            border: 1px solid #E5E0D8;
+            border-radius: 6px;
+            outline: none;
+        }
+        QTableWidget::item {
+            border-bottom: 1px solid #F0EDE5;
+            padding-left: 10px;
+        }
+        QTableWidget::item:selected {
+            background-color: #FFF8E1;
+            color: #3A271E;
+        }
+    """)
+
+    app.pets_table.horizontalHeader().setStyleSheet("""
+        QHeaderView::section { 
+            background-color: #F0EDE5; 
+            color: #3A271E; 
+            font-weight: bold; 
+            padding: 10px; 
+            border: none; 
+            border-bottom: 2px solid #D6D0C4;
+        }
+    """)
+    
     app.pets_table.cellClicked.connect(lambda row, col: copy_to_clipboard(app, row, col))
     
-    layout.addWidget(app.pets_table)
+    card_lay.addWidget(app.pets_table)
+    layout.addWidget(card)
 
 def refresh(app):
     try:
@@ -56,14 +103,12 @@ def refresh(app):
     except Exception: pass
 
 def copy_to_clipboard(app, row, col):
-    """Copies the text of the clicked cell to the system clipboard and notifies the user."""
     text_to_copy = ""
     item = app.pets_table.item(row, col)
     
     if item and item.text():
         text_to_copy = item.text()
     else:
-        # If the user clicked the custom behavior pill, extract its label text
         widget = app.pets_table.cellWidget(row, col)
         if widget:
             label = widget.findChild(QLabel)

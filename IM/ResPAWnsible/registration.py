@@ -4,24 +4,27 @@ from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFormLayout,
 from PyQt5.QtCore import Qt
 
 def build_page(app, layout):
-    layout.setContentsMargins(25, 25, 25, 25)
-    layout.addWidget(QLabel("<h1 style='color: #3A271E; margin-bottom: 5px;'>🐾 Register New Pet</h1>"))
-    layout.addWidget(QLabel("<p style='color: #757575; margin-top: 0px;'>Add a new pet to the facility directory.</p>"))
+    layout.setContentsMargins(30, 30, 30, 30)
+    
+    title = QLabel("🐾 Register New Pet")
+    title.setObjectName("Header1")
+    layout.addWidget(title)
+    
+    sub = QLabel("Add a new pet to the facility directory.")
+    sub.setStyleSheet("color: #757575; margin-top: 0px; margin-bottom: 15px;")
+    layout.addWidget(sub)
     
     center_wrapper = QHBoxLayout()
     container = QFrame()
-    container.setFixedWidth(650)
-    container.setStyleSheet("background-color: white; border: 1px solid #EAEAEA; border-radius: 8px;")
+    container.setMinimumWidth(600)
+    container.setMaximumWidth(850)
+    container.setObjectName("MainCard")
     
     main_form_lay = QVBoxLayout(container)
-    main_form_lay.setContentsMargins(30, 30, 30, 30)
-    main_form_lay.setSpacing(20)
-    
-    style = "padding: 10px; border: 1px solid #CCC; border-radius: 4px; background: #FDFDFD; color: #333;"
+    main_form_lay.setContentsMargins(40, 40, 40, 40)
+    main_form_lay.setSpacing(25)
     
     app.inputs = {"First Name": QLineEdit(), "Last Name": QLineEdit(), "Phone": QLineEdit(), "Pet Name": QLineEdit(), "Weight (kg)": QLineEdit()}
-    for widget in app.inputs.values(): widget.setStyleSheet(style)
-    
     app.inputs["Phone"].setInputMask("\\0\\900-000-0000")
     
     app.inputs["First Name"].textEdited.connect(lambda: auto_capitalize_fields(app, app.inputs["First Name"]))
@@ -29,16 +32,14 @@ def build_page(app, layout):
     app.inputs["First Name"].editingFinished.connect(lambda: check_existing_owner(app))
     app.inputs["Last Name"].editingFinished.connect(lambda: check_existing_owner(app))
 
-    owner_header = QLabel("<h3>👤 Owner Information</h3>")
-    owner_header.setStyleSheet("color: #3A271E; border-bottom: 2px solid #FFC107; padding-bottom: 5px;")
+    owner_header = QLabel("👤 Owner Information")
+    owner_header.setObjectName("SubHeader")
     main_form_lay.addWidget(owner_header)
     
     mode_lay = QHBoxLayout()
     app.radio_new_owner = QRadioButton("Register New Owner")
     app.radio_existing_owner = QRadioButton("Select Existing Owner")
     app.radio_new_owner.setChecked(True)
-    app.radio_new_owner.setStyleSheet("font-weight: normal; color: #333;")
-    app.radio_existing_owner.setStyleSheet("font-weight: normal; color: #333;")
     
     mode_lay.addWidget(app.radio_new_owner)
     mode_lay.addWidget(app.radio_existing_owner)
@@ -47,8 +48,8 @@ def build_page(app, layout):
     
     app.new_owner_widget = QWidget()
     no_lay = QFormLayout(app.new_owner_widget)
-    no_lay.setContentsMargins(0, 10, 0, 0)
-    no_lay.setSpacing(15)
+    no_lay.setContentsMargins(0, 5, 0, 0)
+    no_lay.setVerticalSpacing(15)
     no_lay.addRow("First Name:", app.inputs["First Name"])
     no_lay.addRow("Last Name:", app.inputs["Last Name"])
     no_lay.addRow("Mobile Number:", app.inputs["Phone"])
@@ -56,9 +57,8 @@ def build_page(app, layout):
     
     app.existing_owner_widget = QWidget()
     eo_lay = QFormLayout(app.existing_owner_widget)
-    eo_lay.setContentsMargins(0, 10, 0, 0)
+    eo_lay.setContentsMargins(0, 5, 0, 0)
     app.existing_owner_cb = QComboBox()
-    app.existing_owner_cb.setStyleSheet(style)
     app.make_searchable(app.existing_owner_cb, allow_new=False)
     eo_lay.addRow("Select Owner:", app.existing_owner_cb)
     app.existing_owner_widget.hide()
@@ -67,47 +67,48 @@ def build_page(app, layout):
     app.radio_new_owner.toggled.connect(lambda: toggle_owner_mode(app))
     app.radio_existing_owner.toggled.connect(lambda: toggle_owner_mode(app))
 
-    pet_header = QLabel("<br><h3>🐶 Pet Details</h3>")
-    pet_header.setStyleSheet("color: #3A271E; border-bottom: 2px solid #FFC107; padding-bottom: 5px;")
+    pet_header = QLabel("🐶 Pet Details")
+    pet_header.setObjectName("SubHeader") 
     main_form_lay.addWidget(pet_header)
     
     pet_widget = QWidget()
     po_lay = QFormLayout(pet_widget)
-    po_lay.setContentsMargins(0, 10, 0, 0)
-    po_lay.setSpacing(15)
+    po_lay.setContentsMargins(0, 5, 0, 0)
+    po_lay.setVerticalSpacing(15)
+
     po_lay.addRow("Pet Name:", app.inputs["Pet Name"])
     po_lay.addRow("Weight (kg):", app.inputs["Weight (kg)"])
     
     app.species_cb = QComboBox()
     app.species_cb.addItems(["Dog", "Cat", "Bird", "Rabbit", "Reptile", "Other"])
-    app.species_cb.setStyleSheet(style)
-    app.make_searchable(app.species_cb, allow_new=False)
+    app.make_searchable(app.species_cb, allow_new=False, locked=True) 
     po_lay.addRow("Species:", app.species_cb)
-    
+
     app.breed_cb = QComboBox()
-    app.breed_cb.setStyleSheet(style)
     app.make_searchable(app.breed_cb, allow_new=True) 
     po_lay.addRow("Breed:", app.breed_cb)
 
     app.behavior_cb = QComboBox()
-    app.behavior_cb.setStyleSheet(style)
     for t_id, t_name in app.tags: app.behavior_cb.addItem(t_name, t_id)
-    app.make_searchable(app.behavior_cb, allow_new=False)
+    app.make_searchable(app.behavior_cb, allow_new=False, locked=True)
     po_lay.addRow("Behavior Profile:", app.behavior_cb)
+    
     main_form_lay.addWidget(pet_widget)
     
     btn_lay = QHBoxLayout()
     btn_lay.addStretch()
     btn = QPushButton("Complete Registration")
-    btn.setFixedWidth(220)
+    btn.setObjectName("PrimaryBtn")
+    btn.setFixedWidth(240)
     btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
-    btn.setStyleSheet("background-color: #FFC107; color: #3A271E; font-size: 14px; font-weight: bold; padding: 12px; border-radius: 6px; margin-top: 15px;")
     btn.clicked.connect(lambda: submit_data(app))
     btn_lay.addWidget(btn)
     
     main_form_lay.addLayout(btn_lay)
     center_wrapper.addWidget(container)
-    center_wrapper.addStretch()
+    center_wrapper.addStretch() 
+    center_wrapper.addWidget(container)
+    center_wrapper.addStretch() 
     layout.addLayout(center_wrapper)
     layout.addStretch()
 
@@ -115,6 +116,7 @@ def toggle_owner_mode(app):
     if app.radio_new_owner.isChecked():
         app.new_owner_widget.show()
         app.existing_owner_widget.hide()
+        app.inputs["Phone"].setReadOnly(False)
     else:
         app.new_owner_widget.hide()
         app.existing_owner_widget.show()
@@ -148,7 +150,9 @@ def check_existing_owner(app):
                           WHERE O.FirstName = ? AND O.LastName = ? LIMIT 1;""", 
                        (app.inputs["First Name"].text().strip(), app.inputs["Last Name"].text().strip()))
         res = app.c.fetchone()
-        if res: app.inputs["Phone"].setText(res[0])
+        if res: 
+            app.inputs["Phone"].setText(res[0])
+            app.inputs["Phone"].setReadOnly(True)
     except Exception: pass
 
 def refresh_breed_dropdown(app):
@@ -208,7 +212,9 @@ def submit_data(app):
         app.c.execute("INSERT INTO PET_TAG (PetID, TagID) VALUES (?, ?);", (pet_id, tag_id))
         app.conn.commit()
         QMessageBox.information(app, "Success", f"Pet registered successfully!\n\nSecure Pet Tracking ID: {pet_id}\n\nPlease save this ID for check-ins.")
+        
         for w in app.inputs.values(): w.clear()
+        app.inputs["Phone"].setReadOnly(False)
         app.breed_cb.clearEditText()
     except ValueError: QMessageBox.warning(app, "Input Error", "Weight must be a valid number.")
     except Exception as e: app.conn.rollback(); QMessageBox.critical(app, "Database Error", str(e))

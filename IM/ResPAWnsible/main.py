@@ -25,6 +25,106 @@ class ResPAWnsibleApp(QMainWindow):
         self.init_db()
         self.init_ui()
 
+        self.setStyleSheet("""
+            QMainWindow { 
+                background-color: #FDFBF7; 
+                font-family: 'Segoe UI', Arial, sans-serif; 
+            }
+            /* The sleek white container cards */
+            QFrame#MainCard { 
+                background-color: #FFFFFF; 
+                border-radius: 12px; 
+                border: 1px solid #E5E0D8; 
+            }
+            QLabel { 
+                color: #3A271E; 
+                font-size: 13px; 
+            }
+            QLabel#Header1 { 
+                font-size: 26px; 
+                font-weight: 800; 
+                color: #3A271E; 
+            }
+            QLabel#SubHeader { 
+                font-size: 16px; 
+                font-weight: bold; 
+                color: #3A271E; 
+                border-bottom: 2px solid #FFC107; 
+                padding-bottom: 5px; 
+            }
+            
+            /* Modern, padded input fields */
+            QLineEdit, QComboBox, QDateEdit, QTimeEdit {
+                padding: 10px; 
+                border: 1px solid #D6D0C4; 
+                border-radius: 6px; 
+                background-color: #FCFAFA; 
+                color: #333; 
+                font-size: 13px;
+            }
+            
+            /* Make them pop when clicked */
+            QLineEdit:focus, QComboBox:focus { 
+                border: 2px solid #FFC107; 
+                background-color: #FFFFFF; 
+            }
+            
+            /* Locked fields look clearly un-editable */
+            QLineEdit:read-only { 
+                background-color: #F0EDE5; 
+                color: #8C7B70; 
+                border: 1px dashed #D6D0C4; 
+            }
+            
+            QComboBox QAbstractItemView { 
+                border: 1px solid #D6D0C4; 
+                selection-background-color: #FFC107; 
+                selection-color: #3A271E; 
+            }
+            
+            /* Brand Action Buttons */
+            QPushButton#PrimaryBtn { 
+                background-color: #FFC107; 
+                color: #3A271E; 
+                font-weight: bold; 
+                font-size: 14px; 
+                padding: 12px; 
+                border-radius: 6px; 
+                border: none; 
+            }
+            QPushButton#PrimaryBtn:hover { background-color: #E6AE06; }
+            QPushButton#PrimaryBtn:pressed { background-color: #CC9A04; }
+            
+            /* Custom sleek radio buttons with PERFECT inner dots */
+            QRadioButton { 
+                font-size: 13px; 
+                color: #3A271E; 
+                spacing: 8px; 
+            }
+            QRadioButton::indicator { 
+                width: 14px; 
+                height: 14px; 
+                border-radius: 8px; /* Makes it completely circular */
+                border: 2px solid #D6D0C4; 
+                background-color: white; 
+            }
+            QRadioButton::indicator:checked { 
+                border: 2px solid #FFC107; 
+                /* Magic radial gradient paints an orange dot surrounded by a white gap */
+                background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 #FFC107, stop:0.5 #FFC107, stop:0.6 white, stop:1 white);
+            }
+            QComboBox QLineEdit {
+                background-color: transparent;
+                border: none;
+                color: #333;
+            }
+            QComboBox QLineEdit:read-only {
+                background-color: transparent;
+                selection-background-color: transparent;
+                selection-color: #333;
+            }
+        """)
+
     def init_db(self):
         self.conn = sqlite3.connect(db_path)
         self.c = self.conn.cursor()
@@ -138,9 +238,12 @@ class ResPAWnsibleApp(QMainWindow):
         lbl.setStyleSheet(f"background-color: {bg}; color: {fg}; border: 1px solid {border}; border-radius: 12px; padding: 4px 14px; font-weight: bold; font-size: 11px;")
         container = QWidget()
         lay = QHBoxLayout(container)
-        lay.setContentsMargins(5, 4, 5, 4)
+        lay.setContentsMargins(5, 2, 5, 2)
+        
+        lay.addStretch()
         lay.addWidget(lbl)
-        lay.addStretch() 
+        lay.addStretch()
+        
         return container
 
     def filter_table(self, text, table):
@@ -160,17 +263,7 @@ class ResPAWnsibleApp(QMainWindow):
                             match = True
                             break
             table.setRowHidden(row, not match)
-
-    def make_searchable(self, combo_box, allow_new=False):
-        combo_box.setEditable(True)
-        if not allow_new:
-            combo_box.setInsertPolicy(QComboBox.NoInsert)
-        completer = combo_box.completer()
-        if completer:
-            completer.setCompletionMode(QCompleter.PopupCompletion)
-            completer.setFilterMode(Qt.MatchContains)
-            completer.setCaseSensitivity(Qt.CaseInsensitive)
-
+            
     def init_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
@@ -312,8 +405,36 @@ class ResPAWnsibleApp(QMainWindow):
                 if hasattr(cam, 'thread'): cam.thread.stop()
         self.conn.close()
 
+    def make_searchable(self, combobox, allow_new=False, locked=False):
+        combobox.setEditable(True)
+        
+        if locked:
+            combobox.lineEdit().setReadOnly(True)
+            combobox.lineEdit().setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
+            combobox.lineEdit().mousePressEvent = lambda e: combobox.showPopup()
+        else:
+            completer = QCompleter(combobox.model(), self)
+            completer.setCompletionMode(QCompleter.PopupCompletion)
+            completer.setCaseSensitivity(Qt.CaseInsensitive)
+            completer.setFilterMode(Qt.MatchContains)
+            combobox.setCompleter(completer)
+            
+        if not allow_new:
+            combobox.setInsertPolicy(QComboBox.NoInsert)
+
 if __name__ == '__main__':
+    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    
+    font = app.font()
+    font.setFamily("Segoe UI")
+    app.setFont(font)
+    
     window = ResPAWnsibleApp()
     window.show()
     sys.exit(app.exec_())
