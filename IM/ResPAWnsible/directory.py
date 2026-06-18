@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView
 from PyQt5.QtCore import Qt
 
 TABLE_HEADER_STYLE = "QHeaderView::section { background-color: #4A352B; color: white; font-weight: bold; padding: 5px; border: none; }"
@@ -22,6 +22,10 @@ def build_page(app, layout):
     app.pets_table.verticalHeader().setDefaultSectionSize(50) 
     app.pets_table.setAlternatingRowColors(True)
     app.pets_table.setStyleSheet("background-color: white; alternate-background-color: #FAFAFA; gridline-color: #E0E0E0; border-radius: 8px;")
+    
+    # Enable the copy-to-clipboard functionality when a cell is clicked
+    app.pets_table.cellClicked.connect(lambda row, col: copy_to_clipboard(app, row, col))
+    
     layout.addWidget(app.pets_table)
 
 def refresh(app):
@@ -50,3 +54,25 @@ def refresh(app):
                     app.pets_table.setItem(r_idx, c_idx, item)
         app.pets_table.setSortingEnabled(True)
     except Exception: pass
+
+def copy_to_clipboard(app, row, col):
+    """Copies the text of the clicked cell to the system clipboard and notifies the user."""
+    text_to_copy = ""
+    item = app.pets_table.item(row, col)
+    
+    if item and item.text():
+        text_to_copy = item.text()
+    else:
+        # If the user clicked the custom behavior pill, extract its label text
+        widget = app.pets_table.cellWidget(row, col)
+        if widget:
+            label = widget.findChild(QLabel)
+            if label:
+                text_to_copy = label.text()
+                
+    if text_to_copy:
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text_to_copy)
+        # Briefly display a success message at the very bottom left corner of the window
+        app.statusBar().setStyleSheet("color: #2E7D32; font-weight: bold; background: #E8F5E9;")
+        app.statusBar().showMessage(f"📋 Copied '{text_to_copy}' to clipboard", 3000)

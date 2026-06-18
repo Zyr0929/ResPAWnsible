@@ -79,13 +79,13 @@ class ResPAWnsibleApp(QMainWindow):
             
             self.c.execute("SELECT RoomID, RoomName, MaxCapacity FROM PLAYROOM;")
             for r_id, r_name, r_cap in self.c.fetchall():
-
+                
                 self.c.execute("""SELECT P.Name, P.Weight_lbs, BT.Behavior, B.BreedType FROM VISIT V JOIN PET P ON V.PetID = P.PetID
                                   LEFT JOIN PET_TAG PT ON P.PetID = PT.PetID LEFT JOIN BEHAVIOR_TAG BT ON PT.TagID = BT.TagID
                                   LEFT JOIN BREED B ON P.PetID = B.PetID WHERE V.RoomID = ? AND (V.EndTime IS NULL OR V.EndTime = '');""", (r_id,))
                 occupants = self.c.fetchall()
                 count = len(occupants)
-
+                
                 self.c.execute("SELECT StartTime FROM BOOKING WHERE RoomID = ? AND Status = 'Confirmed' AND StartDate = ?;", (r_id, today_str))
                 upcoming_count = 0
                 for (b_time,) in self.c.fetchall():
@@ -97,7 +97,7 @@ class ResPAWnsibleApp(QMainWindow):
                     except: pass
                 
                 total_projected = count + upcoming_count
-
+                
                 if r_cap and count >= r_cap: 
                     alerts.append(("CRITICAL", "Capacity Overflow", f"{r_name} is currently FULL ({count}/{r_cap}). No further admittance allowed."))
                 elif r_cap and total_projected > r_cap:
@@ -106,7 +106,7 @@ class ResPAWnsibleApp(QMainWindow):
                     alerts.append(("WARNING", "Approaching Capacity", f"{r_name} has {count} pet(s) with {upcoming_count} incoming booking(s) soon. It will be full (Max: {r_cap})."))
                 elif r_cap > 1 and count >= r_cap - 1: 
                     alerts.append(("WARNING", "Near Capacity", f"{r_name} is almost full ({count}/{r_cap}). Consider redirecting walk-ins."))
-
+                
                 if count < 2: continue
                 solo = [p for p in occupants if "Requires Solo Room" in str(p[2])]
                 if solo: alerts.append(("CRITICAL", "Isolation Breach", f"{solo[0][0]} requires a solo room, but {count-1} other pets are inside {r_name}."))
@@ -235,10 +235,6 @@ class ResPAWnsibleApp(QMainWindow):
         elif index == 6: safety.refresh(self)
 
     def run_safety_matrix(self, pet_id, room_id, check_occupants=True):
-        """
-        Validates safety rules.
-        If check_occupants is False, it ONLY validates the static Room behavior rules (useful for advance bookings).
-        """
         self.c.execute("SELECT P.Name, P.Weight_lbs, BT.Behavior, B.BreedType FROM PET P LEFT JOIN BREED B ON P.PetID=B.PetID LEFT JOIN PET_TAG PT ON P.PetID=PT.PetID LEFT JOIN BEHAVIOR_TAG BT ON PT.TagID=BT.TagID WHERE P.PetID=?;", (pet_id,))
         p_prof = self.c.fetchone()
         if not p_prof: return False, "Invalid Pet ID."
@@ -252,19 +248,25 @@ class ResPAWnsibleApp(QMainWindow):
 
         self.c.execute("SELECT RoomName FROM PLAYROOM WHERE RoomID=?;", (room_id,))
         room_name = str(self.c.fetchone()[0]).lower()
-
-        if "aggressive" in behavior and "aggressive" not in room_name and "solo" not in room_name:
-            return False, f"Behavior Mismatch: {pet_name} (Aggressive) MUST be assigned to an Aggressive or Solo room."
-        if "aggressive" in room_name and "aggressive" not in behavior:
-            return False, f"Behavior Mismatch: {room_name.title()} is strictly reserved for Aggressive pets only."
         
-        if "fearful" in behavior or "nervous" in behavior:
-            if "fearful" not in room_name and "solo" not in room_name:
-                return False, f"Behavior Mismatch: {pet_name} (Nervous/Fearful) MUST be assigned to the Fearful or Solo room."
+        if "aggressive" in room_name and "aggressive" not in behavior:
+            return False, f"Behavior Mismatch: '{room_name.title()}' is strictly reserved for Aggressive pets only."
+        if "aggressive" in behavior and "aggressive" not in room_name and "solo" not in room_name:
+            return False, f"Behavior Mismatch: {pet_name} (Aggressive) MUST be assigned to an Aggressive Room or Solo Room."
+        
         if "fearful" in room_name and "fearful" not in behavior and "nervous" not in behavior:
-            return False, f"Behavior Mismatch: {room_name.title()} is strictly reserved for Nervous/Fearful pets only."
+            return False, f"Behavior Mismatch: '{room_name.title()}' is strictly reserved for Nervous/Fearful pets only."
+        if ("fearful" in behavior or "nervous" in behavior) and "fearful" not in room_name and "solo" not in room_name:
+            return False, f"Behavior Mismatch: {pet_name} (Nervous/Fearful) MUST be assigned to the Fearful Room or a Solo Room."
             
-        if "calm" in behavior or "friendly" in behavior or "playful" in behavior:
+        if "calm" in room_name and "calm" not in behavior and "friendly" not in behavior:
+            return False, f"Behavior Mismatch: '{room_name.title()}' is strictly reserved for Calm or Friendly pets only."
+
+        if "hyperactive" in behavior or "playful" in behavior:
+            if "friendly" not in room_name and "solo" not in room_name:
+                return False, f"Behavior Mismatch: {pet_name} (Hyperactive/Playful) MUST be assigned to the Friendly Room or a Solo Room."
+                
+        if "calm" in behavior or "friendly" in behavior:
             if "calm" not in room_name and "friendly" not in room_name and "solo" not in room_name:
                 return False, f"Behavior Mismatch: {pet_name} (Friendly/Calm) should be assigned to the Calm, Friendly, or Solo rooms."
                 
