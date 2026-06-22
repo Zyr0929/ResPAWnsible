@@ -101,18 +101,18 @@ def build_page(app, layout):
     
     action_lay = QHBoxLayout()
     action_lay.addStretch()
+
+    insta_btn = QPushButton("⚡ Check-In Selected")
+    insta_btn.setStyleSheet("background-color: #E8F5E9; color: #2E7D32; font-weight: bold; padding: 10px 20px; border-radius: 6px; border: 1px solid #A5D6A7;")
+    insta_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
+    insta_btn.clicked.connect(lambda: insta_checkin_booking(app))
+    action_lay.addWidget(insta_btn)
     
     cancel_btn = QPushButton("❌ Cancel Booking")
     cancel_btn.setStyleSheet("background-color: #FFEBEE; color: #C62828; font-weight: bold; padding: 10px 20px; border-radius: 6px; border: 1px solid #EF9A9A;")
     cancel_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
     cancel_btn.clicked.connect(lambda: cancel_booking(app))
     action_lay.addWidget(cancel_btn)
-    
-    insta_btn = QPushButton("⚡ Check-In Selected")
-    insta_btn.setStyleSheet("background-color: #E8F5E9; color: #2E7D32; font-weight: bold; padding: 10px 20px; border-radius: 6px; border: 1px solid #A5D6A7;")
-    insta_btn.setCursor(Qt.PointingHandCursor if hasattr(Qt, 'PointingHandCursor') else 13)
-    insta_btn.clicked.connect(lambda: insta_checkin_booking(app))
-    action_lay.addWidget(insta_btn)
     
     lp_lay.addLayout(action_lay)
     split_layout.addWidget(left_panel, 6)

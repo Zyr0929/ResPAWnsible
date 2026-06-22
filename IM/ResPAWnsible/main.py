@@ -14,6 +14,8 @@ import bookings
 import visitations
 import safety
 import history
+import owners
+import rooms
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 db_path = os.path.join(BASE_DIR, 'ResPAWnsible(Real).db')
@@ -364,7 +366,9 @@ class ResPAWnsibleApp(QMainWindow):
 
         self.nav_btns = []
         nav_items = [("📊", "Dashboard"), ("📹", "Live Playrooms"), ("🐾", "Register Pet"), 
-                     ("📋", "Pet Directory"), ("📅", "Bookings"), ("🚪", "Visitations"), ("🛡️", "Safety Reports"), ("🕰️", "History")]
+                     ("📋", "Pet Directory"), ("📅", "Bookings"), ("🚪", "Visitations"), 
+                     ("🛡️", "Safety Reports"), ("🕰️", "History"), ("👥", "Owner Manager"), 
+                     ("🏢", "Facility Manager")]
         
         self.stack = QStackedWidget()
         
@@ -385,6 +389,8 @@ class ResPAWnsibleApp(QMainWindow):
             elif i == 5: visitations.build_page(self, p_layout)
             elif i == 6: safety.build_page(self, p_layout)
             elif i == 7: history.build_page(self, p_layout)
+            elif i == 8: owners.build_page(self, p_layout)
+            elif i == 9: rooms.build_page(self, p_layout)
             self.stack.addWidget(page)
             
         side_layout.addStretch()
@@ -412,6 +418,8 @@ class ResPAWnsibleApp(QMainWindow):
         elif index == 5: visitations.refresh(self)
         elif index == 6: safety.refresh(self)
         elif index == 7: history.refresh(self)
+        elif index == 8: owners.refresh(self)
+        elif index == 9: rooms.refresh(self)
 
     def run_safety_matrix(self, pet_id, room_id, check_occupants=True):
         self.c.execute("SELECT P.Name, P.Weight_lbs, BT.Behavior, B.BreedType FROM PET P LEFT JOIN BREED B ON P.PetID=B.PetID LEFT JOIN PET_TAG PT ON P.PetID=PT.PetID LEFT JOIN BEHAVIOR_TAG BT ON PT.TagID=BT.TagID WHERE P.PetID=?;", (pet_id,))
